@@ -44,9 +44,6 @@ public:
 private:
     using tcp = boost::asio::ip::tcp;
     boost::beast::websocket::stream<tcp::socket> m_ws;
-    //这个strand只是让async操作的callback不并行执行
-    //不保证m_ws本身的线程安全性
-    boost::asio::strand<boost::asio::io_context::executor_type> m_strand;
 
     //handlers
     accept_handler m_accept_hdl;
@@ -140,11 +137,8 @@ private:
             m_ws.text(true);
             m_in_writing = true;
             m_ws.async_write(boost::asio::buffer(*write_str),
-                             boost::asio::bind_executor(m_strand,
-                                                        std::bind(&lurker_session::on_write,
-                                                                  shared_from_this(),
-                                                                  std::placeholders::_1,
-                                                                  std::placeholders::_2)));
+                             boost::beast::bind_front_handler(&lurker_session::on_write,
+                                                              shared_from_this()));
             return;
         }
         m_in_writing = false;
